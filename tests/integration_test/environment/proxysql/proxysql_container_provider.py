@@ -27,10 +27,7 @@ class ProxysqlContainerProvider(ComponentProvider):
         self.config = config
 
     def _write_config(self) -> str:
-        config_path = os.path.join(
-            os.getcwd(),
-            "configs/proxysql/proxysql.cnf"
-        )
+        config_path = "/tmp/configs/proxysql/proxysql.cnf"
         os.makedirs(os.path.dirname(config_path), exist_ok=True)
         with open(config_path, "w") as f:
             f.writelines(self.config)

@@ -14,6 +14,9 @@ class MysqlConnectionException(Exception):
     def __init__(self) -> None:
         super().__init__("Could not connect to MySQL")
 
+class MysqlNodeAlreadyExists(Exception):
+    def __init__(self, name: str) -> None:
+        super().__init__(f"Could not add {name} node")
 
 class MysqlReplicationException(Exception): 
     def __init__(self) -> None:

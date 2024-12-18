@@ -127,7 +127,6 @@ mysql_variables=
         
         component.setup()
         component.start()
-        time.sleep(10)
 
     def setup_proxysql(self, proxysql):
         component = ProxysqlContainerProvider(
@@ -150,7 +149,6 @@ mysql_variables=
         )
         component.setup()
         component.start()
-        time.sleep(10)
 
     def setup_mysql_manager(self, mysql_manager, remote: dict=None):
         self.mysql_manager = MysqlManagerContainerProvider(
@@ -162,7 +160,6 @@ mysql_variables=
         self.mysql_manager.set_env(mysql_manager["envs"])
         self.mysql_manager.setup()
         self.mysql_manager.start()
-        time.sleep(10)
     
     def setup_etcd(self, etcd):
         self.etcd = EtcdContainerProvider(
@@ -204,4 +201,3 @@ mysql_variables=
                 "envs": envs,
             }
         )
-        time.sleep(50) 

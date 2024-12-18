@@ -16,7 +16,7 @@ from mysql_manager.constants import (
 from mysql_manager.instance import Mysql
 from mysql_manager.cluster_data_handler import ClusterDataHandler
 from mysql_manager.proxysql import ProxySQL
-from mysql_manager.exceptions import ProgramKilled
+from mysql_manager.exceptions import ProgramKilled, MysqlNodeAlreadyExists
 from mysql_manager.enums import *
 
 current_dir = os.getcwd()
@@ -109,16 +109,18 @@ def init(file, spec, standby: bool):
 @click.option('-n', '--name', help='Name for MySQL', required=True)
 @click.option('--port', help='Port for MySQL', type=int, default=3306)
 def add(host, user, password, name, port):
-    ## TODO: check if mysql is not duplicate
-    cluster_data_handler.add_mysql(
-        name=name,
-        mysql_data={
-            "host": host,
-            "user": user,
-            "password": password,
-            "role": MysqlRoles.REPLICA.value,
-        }
-    )
+    try:
+        cluster_data_handler.add_mysql(
+            name=name,
+            mysql_data={
+                "host": host,
+                "user": user,
+                "password": password,
+                "role": MysqlRoles.REPLICA.value,
+            }
+        )
+    except MysqlNodeAlreadyExists:
+        print(f"mysql server with name: {name} can not be added because it already exists.")
 
 
 @mysql.command()

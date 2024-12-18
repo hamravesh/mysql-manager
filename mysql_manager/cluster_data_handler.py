@@ -7,6 +7,7 @@ from mysql_manager.dto import (
 from mysql_manager.enums import MysqlRoles
 from mysql_manager.etcd import EtcdClient
 from dataclasses import asdict
+from mysql_manager.exceptions import MysqlNodeAlreadyExists
 
 
 class ClusterDataHandler:
@@ -35,6 +36,8 @@ class ClusterDataHandler:
     
     def add_mysql(self, name: str, mysql_data: dict) -> None: 
         cluster_data = self.get_cluster_data()
+        if name in cluster_data.mysqls:
+            raise MysqlNodeAlreadyExists(name)
         cluster_data.mysqls[name] = MysqlData(**mysql_data)
         self.write_cluster_data(cluster_data)
 

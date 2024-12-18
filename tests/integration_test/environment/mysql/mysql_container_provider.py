@@ -32,10 +32,7 @@ class MysqlContainerProvider(ComponentProvider):
         self.config = config
     
     def _write_config(self) -> str:
-        config_path = os.path.join(
-            os.getcwd(),
-            f"configs/mysql/mysql_{self.server_id}.cnf"
-        )
+        config_path = f"/tmp/configs/mysql/mysql_{self.server_id}.cnf"
         os.makedirs(os.path.dirname(config_path), exist_ok=True)
         with open(config_path, "w") as f:
             f.writelines(self.config)

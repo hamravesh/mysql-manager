@@ -117,3 +117,31 @@ Feature: add replica to cluster
       </row>
     </resultset>
     """
+
+
+  Scenario: start with two mysqls and add source again
+    Given setup default proxysql with name: proxysql and image: hub.hamdocker.ir/proxysql/proxysql:2.6.2 
+    And setup etcd with name etcd and image: quay.hamdocker.ir/coreos/etcd:v3.5.9-amd64
+    And setup user root with password: password for etcd
+    And setup user mm for etcd with password: password access to path mm/cluster1/
+    And setup default mysql with server_id 1 and image: hub.hamdocker.ir/library/mysql:8.0.35-bullseye
+    And setup default mysql with server_id 2 and image: hub.hamdocker.ir/library/mysql:8.0.35-bullseye
+    And setup mysql_manager with name mm with env ETCD_HOST=etcd ETCD_USERNAME=mm ETCD_PASSWORD=password ETCD_PREFIX=mm/cluster1/
+    And init mysql cluster spec
+    And sleep 40 seconds
+    Then cluster status must be
+    """
+    source=up
+    replica=up
+
+    """
+    Given add mysql to cluster with host: mysql-s1 and name: s1 and user: root and password: root
+    And restart mysql manager with env ETCD_HOST=etcd ETCD_USERNAME=mm ETCD_PASSWORD=password ETCD_PREFIX=mm/cluster1/
+    And sleep 10 seconds
+
+    Then cluster status must be
+    """
+    source=up
+    replica=up
+    
+    """
