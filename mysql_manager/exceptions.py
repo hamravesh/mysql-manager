@@ -35,3 +35,7 @@ class MysqlNodeAlreadyExists(Exception):
 class SourceDatabaseCannotBeDeleted(Exception):
     def __init__(self) -> None:
         super().__init__("Could not remove master database")
+
+class PluginsAreNotInstalled(Exception):
+    def __init__(self, plugin_names: list[str]) -> None:
+        super().__init__(f"These plugins should be installed: {plugin_names}")

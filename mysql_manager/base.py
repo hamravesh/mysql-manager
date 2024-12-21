@@ -28,6 +28,23 @@ class BaseServer:
             return None
         return db 
 
+    def fetch(self, query: str, args: list) -> dict:
+        db = self._get_db()
+        if db is None:
+            self._log("Could not connect to mysql")
+            raise MysqlConnectionException()
+
+        result = None
+        with db:
+            with db.cursor() as cursor:
+                try:
+                    cursor.execute(query, args=args)
+                    result = cursor.fetchall()
+                except Exception as e:
+                    self._log(str(e))
+                    raise e
+        return result
+
     def run_command(self, command: str) -> dict: 
         db = self._get_db()
         if db is None: 

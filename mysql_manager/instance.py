@@ -6,7 +6,8 @@ from mysql_manager.enums import (
     MysqlReplicationProblem,
     MysqlStatus,
 )
-
+from helpers.query_builder import QueryBuilder
+from mysql_manager.dto import MysqlPlugin
 from mysql_manager.exceptions import MysqlConnectionException, MysqlReplicationException, MysqlAddPITREventException
 from mysql_manager.base import BaseServer
 from mysql_manager.constants import DEFAULT_DATABASE
@@ -253,9 +254,66 @@ select @@global.log_bin, @@global.binlog_format, @@global.gtid_mode, @@global.en
                     self._log(str(e)) 
                     raise e
 
-    def install_plugin(self, plugin_name: str, plugin_file: str): 
-        plugins = self.run_command(f"SELECT * FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME = '{plugin_name}'")
-        if plugins is not None:
+    def get_plugins(
+        self, name: str | None = None, status: str | None = None
+    ) -> set[MysqlPlugin]:
+        """
+        Retrieve a list of MySQL plugins with optional filtering by name and status.
+
+        This method constructs a SQL query to fetch plugin information from the
+        INFORMATION_SCHEMA.PLUGINS table, with optional conditions for plugin
+        name and status. It then executes the query and returns a list of
+        MysqlPlugin instances based on the results.
+
+        Args:
+            name (str | None): Optional. The name of the plugin to filter by. Default is None.
+            status (str | None): Optional. The status of the plugin to filter by. Default is None.
+
+        Returns:
+            list[MysqlPlugin]: A list of MysqlPlugin instances representing the plugins
+            that match the given filters. If no filters are provided, all plugins are returned.
+
+        Example:
+            >>> plugins = mysql.get_plugins(name="example_plugin", status="ACTIVE")
+            >>> for plugin in plugins:
+            >>>     print(plugin.name, plugin.status, plugin.plugin_type)
+        """
+        query, args = QueryBuilder.build(
+            "SELECT * FROM INFORMATION_SCHEMA.PLUGINS",
+            PLUGIN_NAME=name,
+            PLUGIN_STATUS=status,
+        )
+
+        mysql_plugins = self.fetch(query, args)
+        return {
+            MysqlPlugin(
+                name=_["PLUGIN_NAME"],
+                status=_["PLUGIN_STATUS"],
+                plugin_type=_["PLUGIN_TYPE"],
+            )
+            for _ in mysql_plugins
+        }
+
+    def install_plugin(self, plugin_name: str, plugin_file: str):
+        """
+        Installs a MySQL plugin if it is not already installed.
+
+        This method checks if a plugin with the given name is already installed.
+        If the plugin is not found, it constructs and runs the SQL command to
+        install the plugin using the specified plugin file.
+
+        Args:
+            plugin_name (str): The name of the plugin to install.
+            plugin_file (str): The name of the shared object file containing the plugin.
+
+        Returns:
+            None
+
+        Example:
+            >>> mysql.install_plugin("example_plugin", "example_plugin.so")
+        """
+        plugins = self.get_plugins(name=plugin_name)
+        if plugins:
             return
         
         command = f"INSTALL PLUGIN {plugin_name} SONAME '{plugin_file}'"

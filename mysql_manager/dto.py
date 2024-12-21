@@ -23,3 +23,16 @@ class ClusterData:
     remote: MysqlData | None 
     status: ClusterStatus
     users: dict[str: str]
+
+@dataclass
+class MysqlPlugin:
+    name: str
+    status: str
+    plugin_type: str
+
+    def __eq__(self, other) -> bool:
+        return isinstance(other, MysqlPlugin) and self.name == other.name
+
+    def __hash__(self) -> int:
+        return hash(self.name)
+
