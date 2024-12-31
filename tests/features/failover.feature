@@ -163,7 +163,7 @@ Feature: test failover
     """
     
     Given start mysql with server_id 1
-    Given sleep 20 seconds
+    Given sleep 30 seconds
     Then cluster status must be
     """
     source=up
@@ -298,3 +298,42 @@ Feature: test failover
     # Then result of query: "show master status;" with user: root and password: root on host: mysql-s1 and port: 3306 should be
     # """
     # """
+  Scenario: increase the failinterval time and then do a failover
+    Given setup etcd with name etcd and image: quay.hamdocker.ir/coreos/etcd:v3.5.9-amd64
+    And setup user root with password: password for etcd
+    And setup user mm for etcd with password: password access to path mm/cluster1/
+    And setup default mysql with server_id 1 and image: hub.hamdocker.ir/library/mysql:8.0.35-bullseye
+    And setup default mysql with server_id 2 and image: hub.hamdocker.ir/library/mysql:8.0.35-bullseye
+    And setup mysql_manager with name mm with env ETCD_HOST=etcd ETCD_USERNAME=mm ETCD_PASSWORD=password ETCD_PREFIX=mm/cluster1/
+    And init mysql cluster spec
+    And change fail interval to 60 seconds
+    And sleep 30 seconds
+    """
+    source=up
+    replica=up
+
+    """
+    And stop mysql with server_id 1
+    And sleep 45 seconds
+    Then cluster status must be
+    """
+    source=down
+    replica=replication_threads_stopped
+
+    """
+    Given sleep 35 seconds
+    Then cluster status must be
+    """
+    source=up
+    replica=down
+
+    """
+    Given start mysql with server_id 1
+    And restart mysql manager with env ETCD_HOST=etcd ETCD_USERNAME=mm ETCD_PASSWORD=password ETCD_PREFIX=mm/cluster1/
+    And sleep 30 seconds
+    Then cluster status must be
+    """
+    source=up
+    replica=up
+
+    """

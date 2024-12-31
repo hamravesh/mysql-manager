@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 from mysql_manager.enums import MysqlClusterState, MysqlRoles
 
 
@@ -23,6 +24,7 @@ class ClusterData:
     remote: MysqlData | None 
     status: ClusterStatus
     users: dict[str: str]
+    fail_interval: int
 
 @dataclass
 class MysqlPlugin:

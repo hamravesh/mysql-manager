@@ -1,4 +1,4 @@
-import time, datetime, yaml
+import time, datetime, yaml, math
 from pymysql.err import OperationalError
 from dataclasses import asdict
 from prometheus_client import start_http_server
@@ -39,9 +39,14 @@ class ClusterManager:
         self.config_file = config_file
         self.cluster_data_handler = ClusterDataHandler()
         self.etcd_client = EtcdClient()
+        self.fail_interval = None
 
         # Start Prometheus metrics server on port 8000
         start_http_server(8000)
+
+    @property
+    def master_failure_threshold(self) -> int:
+        return math.ceil(self.fail_interval / CLUSTER_CHECK_INTERVAL_SECONDS)
 
     def _log(self, msg) -> None:
         print(str(datetime.datetime.now()) + "  " + msg)
@@ -53,6 +58,7 @@ class ClusterManager:
     def _load_cluster_data(self):
         ## TODO: handle mysql servers with ports other than 3306
         self.users = self.cluster_data_handler.get_users()
+        self.fail_interval = self.cluster_data_handler.get_fail_interval()
         does_repl_exist = False
         for name, mysql in self.cluster_data_handler.get_mysqls().items():
             if mysql.role == MysqlRoles.SOURCE.value:
@@ -132,7 +138,7 @@ class ClusterManager:
             elif (
                 # TODO: add more checks for replica: if it was not running sql thread for
                 # a long time, if it is behind master for a long time
-                self.src.health_check_failures > MASTER_FAILURE_THRESHOLD 
+                self.src.health_check_failures > self.master_failure_threshold
                 and self.repl.status != MysqlStatus.DOWN.value
             ):
                 self._log("Running failover for cluster")

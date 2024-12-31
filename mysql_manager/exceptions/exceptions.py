@@ -1,3 +1,6 @@
+from mysql_manager.constants import *
+
+
 class MysqlClusterConfigError(Exception):
     def __init__(self) -> None:
         super().__init__(
@@ -42,3 +45,8 @@ class VariableIsNotSetInDatabase(Exception):
             f"Variable {variable_name} is not set in database"
         )
 
+class FailIntervalLessThanMinimumError(Exception):
+    def __init__(self) -> None:
+        super().__init__(
+            f"Variable fail_interval could not be less than {MINIMUM_FAIL_INTERVAL}"
+        )

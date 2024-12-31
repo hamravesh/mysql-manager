@@ -10,9 +10,10 @@ import signal
 from mysql_manager.etcd import EtcdClient
 from mysql_manager.cluster import ClusterManager
 from mysql_manager.constants import (
-    DEFAULT_CONFIG_PATH,
     CLUSTER_STATE_FILE_PATH,
+    MINIMUM_FAIL_INTERVAL
 )
+from mysql_manager.exceptions.exceptions import FailIntervalLessThanMinimumError
 from mysql_manager.instance import Mysql
 from mysql_manager.cluster_data_handler import ClusterDataHandler
 from mysql_manager.proxysql import ProxySQL
@@ -74,9 +75,15 @@ def init(file, spec, standby: bool):
         cluster_data["status"] = {
             "state": MysqlClusterState.NEW.value  
         }
-
     cluster_data_handler.write_cluster_data_dict(cluster_data)
 
+@cli.command()
+@click.argument("fail_interval", type=int)
+def set_fail_interval(fail_interval):
+    try:
+        cluster_data_handler.set_fail_interval(fail_interval)
+    except FailIntervalLessThanMinimumError:
+        print(f"The value of fail_interval could not be less than {MINIMUM_FAIL_INTERVAL}")
 
 @cli.command()
 @click.option('-h', '--host', help='MySQL host', required=True)

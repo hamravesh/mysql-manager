@@ -8,7 +8,8 @@ from mysql_manager.enums import MysqlRoles
 from mysql_manager.etcd import EtcdClient
 from dataclasses import asdict
 
-from mysql_manager.exceptions import MysqlNodeAlreadyExists, MysqlNodeDoesNotExist, SourceDatabaseCannotBeDeleted
+from mysql_manager.exceptions import FailIntervalLessThanMinimumError, MysqlNodeAlreadyExists, MysqlNodeDoesNotExist, SourceDatabaseCannotBeDeleted
+from mysql_manager.constants import *
 
 
 class ClusterDataHandler:
@@ -77,7 +78,18 @@ class ClusterDataHandler:
         cluster_data = self.get_cluster_data()
         cluster_data.status.state = state
         self.write_cluster_data(cluster_data)
-           
+
+    def set_fail_interval(self, fail_interval: int) -> None:
+        if fail_interval < MINIMUM_FAIL_INTERVAL:
+            raise FailIntervalLessThanMinimumError
+        cluster_data = self.get_cluster_data()
+        cluster_data.fail_interval = fail_interval
+        self.write_cluster_data(cluster_data)
+
+    def get_fail_interval(self,) -> int:
+        cluster_data = self.get_cluster_data()
+        return cluster_data.fail_interval
+
     def get_cluster_data(self) -> ClusterData:
         ## TODO: handle null value of cluster
         cluster_data_dict = self.etcd_client.read_cluster_data()
@@ -93,6 +105,8 @@ class ClusterDataHandler:
             users=cluster_data_dict["users"],
             status=ClusterStatus(state=cluster_data_dict["status"]["state"]),
             remote=remote,
+            fail_interval=cluster_data_dict.get("fail_interval", MINIMUM_FAIL_INTERVAL)
         )
 
         return cluster_data
+

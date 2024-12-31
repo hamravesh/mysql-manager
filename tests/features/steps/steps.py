@@ -151,6 +151,12 @@ def promote_mysql_cluster(context,):
         f'python cli/mysql-cli.py promote'
     )
 
+@given('change fail interval to {n:d} seconds')
+def change_file_interval(context, n):
+    context.test_env.mysql_manager.exec(
+        f'python cli/mysql-cli.py set-fail-interval {n}'
+    )
+
 @given('add mysql to cluster with host: {host} and name: {name} and user: {user} and password: {password}')
 def add_mysql_to_cluster(context, host, user, password, name):
     context.test_env.mysql_manager.exec(
@@ -202,7 +208,7 @@ def evaluate_query_result(context, query, user, password, host, port):
 
 
 @then('cluster status must be')
-def evaluate_query_result(context):
+def evaluate_cluster_status(context):
     expected_result = context.text
     output = context.test_env.mysql_manager.exec(
         "python cli/mysql-cli.py mysql get-cluster-status"
