@@ -23,6 +23,17 @@ class EtcdClient:
     def write_cluster_data(self, cluster_data: dict):
         self.write(yaml.safe_dump(cluster_data), path="cluster_data")
 
+    def read_request_failover(self) -> str | None:
+        request_failover = self.read(path="request_failover")
+        if request_failover is not None:
+            return request_failover.decode()
+
+    def write_request_failover(self, source_mysql_name: str) -> None:
+        self.write(source_mysql_name, path="request_failover")
+
+    def delete_request_failover(self,) -> None:
+        self.delete(path="request_failover")
+
     def read_cluster_data(self) -> dict: 
         cluster_data = self.read(path="cluster_data")
         if cluster_data is not None:
@@ -47,6 +58,10 @@ class EtcdClient:
     def write(self, message: str, path: str) -> None: 
         self.client.auth()
         self.client.put(self.etcd_prefix + path, message)
+
+    def delete(self, path: str) -> None:
+        self.client.auth()
+        self.client.delete_range(self.etcd_prefix + path)
 
     def read(self, path: str) -> bytes: 
         self.client.auth()
