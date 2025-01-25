@@ -13,6 +13,7 @@ from mysql_manager.exceptions import (
     MysqlNodeAlreadyExists, 
     MysqlNodeDoesNotExist, 
     SourceDatabaseCannotBeDeleted,
+    ReplicaDatabaseCannotBeFailedOver
 )
 
 from mysql_manager.constants import *
@@ -95,6 +96,21 @@ class ClusterDataHandler:
     def get_fail_interval(self,) -> int:
         cluster_data = self.get_cluster_data()
         return cluster_data.fail_interval
+
+    def get_request_failover(self,) -> str | None:
+        return self.etcd_client.read_request_failover()
+
+    def set_request_failover(self, source_mysql_name: str) -> None:
+        cluster_data = self.get_cluster_data()
+        mysqls = cluster_data.mysqls
+        if source_mysql_name not in mysqls:
+            raise MysqlNodeDoesNotExist(source_mysql_name)
+        if mysqls[source_mysql_name].role == MysqlRoles.REPLICA.value:
+            raise ReplicaDatabaseCannotBeFailedOver
+        self.etcd_client.write_request_failover(source_mysql_name)
+
+    def unset_request_failover(self) -> None:
+        self.etcd_client.delete_request_failover()
 
     def get_cluster_data(self) -> ClusterData:
         ## TODO: handle null value of cluster
