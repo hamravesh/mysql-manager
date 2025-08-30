@@ -40,6 +40,7 @@ class ClusterManager:
         self.cluster_data_handler = ClusterDataHandler()
         self.etcd_client = EtcdClient()
         self.fail_interval = None
+        self.request_failover = None
 
         # Start Prometheus metrics server on port 8000
         start_http_server(8000)
@@ -59,6 +60,7 @@ class ClusterManager:
         ## TODO: handle mysql servers with ports other than 3306
         self.users = self.cluster_data_handler.get_users()
         self.fail_interval = self.cluster_data_handler.get_fail_interval()
+        self.request_failover = self.cluster_data_handler.get_request_failover()
         does_repl_exist = False
         for name, mysql in self.cluster_data_handler.get_mysqls().items():
             if mysql.role == MysqlRoles.SOURCE.value:
@@ -138,9 +140,19 @@ class ClusterManager:
             elif (
                 # TODO: add more checks for replica: if it was not running sql thread for
                 # a long time, if it is behind master for a long time
-                self.src.health_check_failures > self.master_failure_threshold
-                and self.repl.status != MysqlStatus.DOWN.value
+                self.request_failover is not None or
+                (
+                    self.src.health_check_failures > self.master_failure_threshold
+                    and self.repl.status != MysqlStatus.DOWN.value
+                )
             ):
+                # Stop failover to occur for second time
+                if self.request_failover is not None and self.request_failover != self.src.name:
+                    self._log(f"Because source database has changed since last request, failover is not performed.")
+                    self.cluster_data_handler.unset_request_failover()
+                    return
+                self.cluster_data_handler.unset_request_failover()
+
                 self._log("Running failover for cluster")
                 FAILOVER_ATTEMPTS.inc()
                 ## TODO: what if we restart when running this 

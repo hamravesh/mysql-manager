@@ -39,6 +39,10 @@ class SourceDatabaseCannotBeDeleted(Exception):
     def __init__(self) -> None:
         super().__init__("Could not remove master database")
 
+class ReplicaDatabaseCannotBeFailedOver(Exception):
+    def __init__(self) -> None:
+        super().__init__("Could not failover on replica database")
+
 class VariableIsNotSetInDatabase(Exception):
     def __init__(self, variable_name: str) -> None:
         super().__init__(

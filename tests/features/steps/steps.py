@@ -220,3 +220,9 @@ def evaluate_cluster_status(context):
 def search_for_logs_in_mm(context,):
     error_text = context.text
     assert error_text in context.test_env.mysql_manager.logs()
+
+@given('request failover for mysql with name: {name}')
+def request_failover(context, name):
+    context.test_env.mysql_manager.exec(
+        f"python cli/mysql-cli.py request-failover -n {name}"
+    )

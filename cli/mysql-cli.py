@@ -13,7 +13,7 @@ from mysql_manager.constants import (
     CLUSTER_STATE_FILE_PATH,
     MINIMUM_FAIL_INTERVAL
 )
-from mysql_manager.exceptions.exceptions import FailIntervalLessThanMinimumError
+from mysql_manager.exceptions.exceptions import FailIntervalLessThanMinimumError, ReplicaDatabaseCannotBeFailedOver
 from mysql_manager.instance import Mysql
 from mysql_manager.cluster_data_handler import ClusterDataHandler
 from mysql_manager.proxysql import ProxySQL
@@ -84,6 +84,16 @@ def set_fail_interval(fail_interval):
         cluster_data_handler.set_fail_interval(fail_interval)
     except FailIntervalLessThanMinimumError:
         print(f"The value of fail_interval could not be less than {MINIMUM_FAIL_INTERVAL}")
+
+@cli.command()
+@click.option('-n', '--name', help='Name for MySQL', required=True)
+def request_failover(name):
+    try:
+        cluster_data_handler.set_request_failover(name)
+    except MysqlNodeDoesNotExist:
+        print(f"{name} mysql is not in database cluster.")
+    except ReplicaDatabaseCannotBeFailedOver:
+        print(f"{name} is not source database, for failover please set source database name.")
 
 @cli.command()
 @click.option('-h', '--host', help='MySQL host', required=True)
