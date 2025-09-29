@@ -243,10 +243,10 @@ def rotate_passwords(repl_pwd, exporter_pwd, nonpriv_pwd, root_pwd):
             
 
     cluster_data_handler.write_cluster_data(cd)
-    print("Password rotation completed")
-    
 
+    print("Password rotation completed")
     print("WARNING: please restart MySQL manager to force it to use new passwords!")
+
     
     
 

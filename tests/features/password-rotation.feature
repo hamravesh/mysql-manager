@@ -11,10 +11,13 @@ Feature: Password rotation
     And init mysql cluster spec
     And sleep 30 seconds
 
+
   Scenario: Rotate replication password
-    When execute password rotation command: python cli/mysql-cli.py mysql rotate-passwords --repl new_repl_password
+    When execute password rotation command: python cli/mysql-cli.py rotate-passwords --repl new_repl_password
     And sleep 10 seconds
     Then user replica with password new_repl_password should be able to connect to source
+    Then user replica with password new_repl_password should be able to connect to replica
+
     Then user root with password root should be able to connect to source
     Then user root with password root should be able to connect to replica
     Then user replica with password password should not be able to connect to source
@@ -22,7 +25,7 @@ Feature: Password rotation
 
 
   Scenario: Rotate multiple passwords
-    When execute password rotation command: python cli/mysql-cli.py mysql rotate-passwords --repl new_repl --exporter new_exp --nonpriv new_np --root new_root
+    When execute password rotation command: python cli/mysql-cli.py rotate-passwords --repl new_repl --exporter new_exp --nonpriv new_np --root new_root
     And sleep 10 seconds
     Then user replica with password new_repl should be able to connect to source
     Then user exporter with password new_exp should be able to connect to source
@@ -44,6 +47,10 @@ Feature: Password rotation
     Then user root with password root should not be able to connect to source
     Then user root with password root should not be able to connect to replica
 
-    Then sleep 10 seconds
+
+    Then user root with password new_root should be able to connect to source
+    Then user root with password new_root should be able to connect to replica
+
+
     And replication should be working with new replica password. check with new_root root password
 
