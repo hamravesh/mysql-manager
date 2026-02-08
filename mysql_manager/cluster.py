@@ -142,18 +142,23 @@ class ClusterManager:
                 # TODO: add more checks for replica: if it was not running sql thread for
                 # a long time, if it is behind master for a long time
                 self.src.health_check_failures > self.master_failure_threshold
-                and self.repl.status != MysqlStatus.DOWN.value and self.repl.get_replication_lag() < MAX_REPLICA_DELAY_SECONDS
+                and self.repl.status != MysqlStatus.DOWN.value
             ):
+                replication_lag = self.repl.get_replication_lag()
+                if replication_lag < MAX_REPLICA_DELAY_SECONDS:
+                    self._log("Running failover for cluster")
+                    FAILOVER_ATTEMPTS.inc()
+                    ## TODO: what if we restart when running this 
+                    ## TODO: use etcd txn
+                    self.cluster_data_handler.set_mysql_role(self.src.name, MysqlRoles.REPLICA.value)
+                    self.cluster_data_handler.set_mysql_role(self.repl.name, MysqlRoles.SOURCE.value)
+                    ## TODO: let all relay logs to be applied before resetting replication
+                    self.repl.reset_replication()
+                    self.switch_src_and_repl()
+                else:
+                    self._log(f"Relication lag too high: {replication_lag} skipping failover")
+
                 
-                self._log("Running failover for cluster")
-                FAILOVER_ATTEMPTS.inc()
-                ## TODO: what if we restart when running this 
-                ## TODO: use etcd txn
-                self.cluster_data_handler.set_mysql_role(self.src.name, MysqlRoles.REPLICA.value)
-                self.cluster_data_handler.set_mysql_role(self.repl.name, MysqlRoles.SOURCE.value)
-                ## TODO: let all relay logs to be applied before resetting replication
-                self.repl.reset_replication()
-                self.switch_src_and_repl()
 
         self._log(f"Source is {self.src.host}")
         if self.repl is not None: 
