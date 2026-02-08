@@ -28,6 +28,9 @@ from mysql_manager.metrics import (
     MASTER_UP_STATUS,
     REPLICA_UP_STATUS,
 )
+from mysql_manager.config import (
+    MAX_REPLICA_DELAY_SECONDS
+)
 
 class ClusterManager: 
     def __init__(self, config_file: str=DEFAULT_CONFIG_PATH):
@@ -120,7 +123,7 @@ class ClusterManager:
         # self._log(str(self.cluster_status))
         self._set_status_metrics()
 
-        if self.repl is not None:  
+        if self.repl is not None: 
             if self.must_replica_join_source(self.repl, self.src): 
                 self.join_replica_to_source(retry=10)
             if (
@@ -139,8 +142,9 @@ class ClusterManager:
                 # TODO: add more checks for replica: if it was not running sql thread for
                 # a long time, if it is behind master for a long time
                 self.src.health_check_failures > self.master_failure_threshold
-                and self.repl.status != MysqlStatus.DOWN.value
+                and self.repl.status != MysqlStatus.DOWN.value and self.repl.get_replication_lag() < MAX_REPLICA_DELAY_SECONDS
             ):
+                
                 self._log("Running failover for cluster")
                 FAILOVER_ATTEMPTS.inc()
                 ## TODO: what if we restart when running this 
