@@ -19,6 +19,7 @@ from mysql_manager.cluster_data_handler import ClusterDataHandler
 from mysql_manager.exceptions import (
     MysqlConnectionException,
     MysqlClusterConfigError,
+    FailedToFetchReplicationLag
 )
 from mysql_manager.constants import *
 from mysql_manager.metrics import (
@@ -27,6 +28,9 @@ from mysql_manager.metrics import (
     CLUSTER_FAILURES,
     MASTER_UP_STATUS,
     REPLICA_UP_STATUS,
+)
+from mysql_manager.config import (
+    MAX_REPLICA_DELAY_SECONDS
 )
 
 class ClusterManager: 
@@ -120,7 +124,7 @@ class ClusterManager:
         # self._log(str(self.cluster_status))
         self._set_status_metrics()
 
-        if self.repl is not None:  
+        if self.repl is not None: 
             if self.must_replica_join_source(self.repl, self.src): 
                 self.join_replica_to_source(retry=10)
             if (
@@ -141,15 +145,27 @@ class ClusterManager:
                 self.src.health_check_failures > self.master_failure_threshold
                 and self.repl.status != MysqlStatus.DOWN.value
             ):
-                self._log("Running failover for cluster")
-                FAILOVER_ATTEMPTS.inc()
-                ## TODO: what if we restart when running this 
-                ## TODO: use etcd txn
-                self.cluster_data_handler.set_mysql_role(self.src.name, MysqlRoles.REPLICA.value)
-                self.cluster_data_handler.set_mysql_role(self.repl.name, MysqlRoles.SOURCE.value)
-                ## TODO: let all relay logs to be applied before resetting replication
-                self.repl.reset_replication()
-                self.switch_src_and_repl()
+                replication_lag = None
+                try:
+                    replication_lag = self.repl.get_replication_lag()
+                except FailedToFetchReplicationLag as ex:
+                    self._log(f"Skipping failover: {ex}")
+                
+                if replication_lag is not None and replication_lag < MAX_REPLICA_DELAY_SECONDS:
+                    self._log("Running failover for cluster")
+                    FAILOVER_ATTEMPTS.inc()
+                    ## TODO: what if we restart when running this 
+                    ## TODO: use etcd txn
+                    self.cluster_data_handler.set_mysql_role(self.src.name, MysqlRoles.REPLICA.value)
+                    self.cluster_data_handler.set_mysql_role(self.repl.name, MysqlRoles.SOURCE.value)
+                    ## TODO: let all relay logs to be applied before resetting replication
+                    self.repl.reset_replication()
+                    self.switch_src_and_repl()
+                else:
+                    if replication_lag is not None:
+                        self._log(f"Relication lag too high: {replication_lag} skipping failover")
+
+                
 
         self._log(f"Source is {self.src.host}")
         if self.repl is not None: 

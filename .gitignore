@@ -9,3 +9,4 @@ __pycache__
 tests/integration_test/configs
 configs/ 
 cluster-spec.yaml
+.venv

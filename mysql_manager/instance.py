@@ -8,9 +8,12 @@ from mysql_manager.enums import (
 )
 from mysql_manager.helpers.query_builder import QueryBuilder
 from mysql_manager.dto import MysqlPlugin
-from mysql_manager.exceptions import MysqlConnectionException, MysqlReplicationException, MysqlAddPITREventException, VariableIsNotSetInDatabase
+from mysql_manager.exceptions import MysqlConnectionException, MysqlReplicationException, MysqlAddPITREventException, VariableIsNotSetInDatabase, FailedToFetchReplicationLag
 from mysql_manager.base import BaseServer
 from mysql_manager.constants import DEFAULT_DATABASE
+from mysql_manager.config import (
+    MAX_REPLICA_DELAY_SECONDS
+)
 
 class Mysql(BaseServer):
     def __init__(self, host: str, user: str, password: str, name: str, role: str, port: int=3306) -> None: 
@@ -348,12 +351,21 @@ select @@global.log_bin, @@global.binlog_format, @@global.gtid_mode, @@global.en
             problems.append(MysqlReplicationProblem.IO_ERROR.value)
         if status["Last_SQL_Errno"] != 0 and status["Last_SQL_Error"] != "":
             problems.append(MysqlReplicationProblem.SQL_ERROR.value)
-        if status["Seconds_Behind_Source"] is not None and status["Seconds_Behind_Source"] > 60:
+        if status["Seconds_Behind_Source"] is not None and status["Seconds_Behind_Source"] > MAX_REPLICA_DELAY_SECONDS:
             problems.append(MysqlReplicationProblem.REPLICATION_LAG_HIGH.value)
         if status["Auto_Position"] != 1:
             problems.append(MysqlReplicationProblem.AUTO_POSITION_DISABLED.value)
         
         return problems
+
+    def get_replication_lag(self) -> int:
+        status = self.get_replica_status()
+        if status is None:
+            raise FailedToFetchReplicationLag("SHOW REPLICA STATUS returned error")
+         
+        if status["Seconds_Behind_Source"] is not None:
+            return status["Seconds_Behind_Source"]
+        raise FailedToFetchReplicationLag("Seconds_Behind_Source key is not present")
 
     def set_source(self, source):
         if source.is_replica():
