@@ -8,7 +8,7 @@ from mysql_manager.enums import (
 )
 from mysql_manager.helpers.query_builder import QueryBuilder
 from mysql_manager.dto import MysqlPlugin
-from mysql_manager.exceptions import MysqlConnectionException, MysqlReplicationException, MysqlAddPITREventException, VariableIsNotSetInDatabase
+from mysql_manager.exceptions import MysqlConnectionException, MysqlReplicationException, MysqlAddPITREventException, VariableIsNotSetInDatabase, FailedToFetchReplicationLag
 from mysql_manager.base import BaseServer
 from mysql_manager.constants import DEFAULT_DATABASE
 from mysql_manager.config import (
@@ -361,11 +361,11 @@ select @@global.log_bin, @@global.binlog_format, @@global.gtid_mode, @@global.en
     def get_replication_lag(self) -> int:
         status = self.get_replica_status()
         if status is None:
-            return 0
+            raise FailedToFetchReplicationLag("SHOW REPLICA STATUS returned error")
          
         if status["Seconds_Behind_Source"] is not None:
             return status["Seconds_Behind_Source"]
-        return 0
+        raise FailedToFetchReplicationLag("Seconds_Behind_Source key is not present")
 
     def set_source(self, source):
         if source.is_replica():

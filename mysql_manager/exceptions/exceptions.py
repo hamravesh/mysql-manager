@@ -50,3 +50,7 @@ class FailIntervalLessThanMinimumError(Exception):
         super().__init__(
             f"Variable fail_interval could not be less than {MINIMUM_FAIL_INTERVAL}"
         )
+
+class FailedToFetchReplicationLag(Exception):
+    def __init__(self , reason):
+        super().__init__(f"Failed to fetch replication lag: {reason}")

@@ -19,6 +19,7 @@ from mysql_manager.cluster_data_handler import ClusterDataHandler
 from mysql_manager.exceptions import (
     MysqlConnectionException,
     MysqlClusterConfigError,
+    FailedToFetchReplicationLag
 )
 from mysql_manager.constants import *
 from mysql_manager.metrics import (
@@ -144,8 +145,13 @@ class ClusterManager:
                 self.src.health_check_failures > self.master_failure_threshold
                 and self.repl.status != MysqlStatus.DOWN.value
             ):
-                replication_lag = self.repl.get_replication_lag()
-                if replication_lag < MAX_REPLICA_DELAY_SECONDS:
+                replication_lag = None
+                try:
+                    replication_lag = self.repl.get_replication_lag()
+                except FailedToFetchReplicationLag as ex:
+                    self._log(f"Skipping failover: {ex}")
+                
+                if replication_lag is not None and replication_lag < MAX_REPLICA_DELAY_SECONDS:
                     self._log("Running failover for cluster")
                     FAILOVER_ATTEMPTS.inc()
                     ## TODO: what if we restart when running this 
@@ -156,7 +162,8 @@ class ClusterManager:
                     self.repl.reset_replication()
                     self.switch_src_and_repl()
                 else:
-                    self._log(f"Relication lag too high: {replication_lag} skipping failover")
+                    if replication_lag is not None:
+                        self._log(f"Relication lag too high: {replication_lag} skipping failover")
 
                 
 
