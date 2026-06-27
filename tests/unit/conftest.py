@@ -38,6 +38,17 @@ class MockedMysql:
         self.run_command = MagicMock(side_effect=side_effect)
         return self
 
+    def on_clone_sequence(self, errors: list[Exception]):
+        def side_effect(command):
+            if "CLONE INSTANCE" in command:
+                if not errors:
+                    return None
+                raise errors.pop(0)
+            return None
+
+        self.run_command = MagicMock(side_effect=side_effect)
+        return self
+
 
 @pytest.fixture(autouse=True)
 def no_sleep(monkeypatch):
