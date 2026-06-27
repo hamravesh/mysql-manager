@@ -294,7 +294,7 @@ class ClusterManager:
             except OperationalError as o:
                 self._log(str(o))
                 if "Restart server failed (mysqld is not managed by supervisor process)" in str(o):
-                    break
+                    return
                 self._log("Failed to clone. Trying again...")
                 time.sleep(CLUSTER_CHECK_INTERVAL_SECONDS)
 

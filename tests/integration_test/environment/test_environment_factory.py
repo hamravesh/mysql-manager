@@ -66,6 +66,12 @@ max_connections = 1000
             if mysql.is_up:
                 return mysql
 
+    def get_mysql_by_server_id(self, server_id: int):
+        for mysql in self.mysqls:
+            if mysql.server_id == server_id:
+                return mysql
+        raise ValueError(f"No mysql container with server_id {server_id}")
+
     def setup_mysql(self, mysql: dict, config: str | None = None):
         self.setup_mysql_with_name(mysql, f"mysql-s{mysql['server_id']}", config)
 

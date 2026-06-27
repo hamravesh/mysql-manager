@@ -63,6 +63,11 @@ Feature: add replica to cluster
     replica=up
 
     """
+    Then logs of mm must contain
+    """
+    Restart server failed (mysqld is not managed by supervisor process)
+    """
+    And replication should be running on mysql with server_id 2
     Then result of query: "select @@global.server_id;" with user: hamadmin and password: password on host: hap1 and port: 3306 should be
     """
     <?xml version="1.0"?>
