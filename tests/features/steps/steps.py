@@ -223,6 +223,18 @@ def search_for_logs_in_mm(context,):
     error_text = context.text
     assert error_text in context.test_env.mysql_manager.logs()
 
+@then('replication should be running on mysql with server_id {server_id:d}')
+def replication_running_on_mysql(context, server_id):
+    mysql = context.test_env.get_mysql_by_server_id(server_id)
+    command = (
+        f"mysql -u{mysql.root_username} -p{mysql.root_password} "
+        f"-h {mysql.name} -P 3306 -e 'SHOW REPLICA STATUS\\G'"
+    )
+    output = mysql.exec(command).output.decode()
+    logger.log(level=1, msg=output)
+    assert "Replica_IO_Running: Yes" in output, "Replica IO thread is not running"
+    assert "Replica_SQL_Running: Yes" in output, "Replica SQL thread is not running"
+
 @then('logs of mm must not contain')
 def search_for_logs_not_in_mm(context,):
     error_text = context.text

@@ -278,6 +278,26 @@ class ClusterManager:
         self.src.create_monitoring_user(self.users["exporterPassword"])
         self.src.create_nonpriv_user(self.users["nonprivUser"], self.users["nonprivPassword"])
 
+    def clone(self, recipient: Mysql, donor: Mysql):
+        # we do not return until the clone is successful. A successful clone makes
+        # the recipient try to restart itself, and since mysqld is not managed by
+        # supervisor here that restart fails with this specific error, which is the
+        # only reliable signal that the clone itself finished.
+        while True:
+            try:
+                self._log(
+                    f"Cloning {donor.host}:{donor.port} into {recipient.host}:{recipient.port}"
+                )
+                recipient.run_command(
+                    f"CLONE INSTANCE FROM '{donor.user}'@'{donor.host}':{donor.port} IDENTIFIED BY '{donor.password}'"
+                )
+            except OperationalError as o:
+                self._log(str(o))
+                if "Restart server failed (mysqld is not managed by supervisor process)" in str(o):
+                    return
+                self._log("Failed to clone. Trying again...")
+                time.sleep(CLUSTER_CHECK_INTERVAL_SECONDS)
+
     def join_source_to_remote(self, retry: int=1):
         ## TODO: check remote server id
         self._log("Joining source to remote")
@@ -294,23 +314,12 @@ class ClusterManager:
         )
         self.src.run_command("set persist read_only=0")
 
-        ## we do not proceed until clone is successful
-        while True:
-            if not CloneCompatibilityChecker(src=self.src, remote=self.remote).is_clone_possible():
-                self._log(f"Cloning is not possible, waiting for {CLONE_COMPATIBILITY_CHECK_INTERVAL_SECONDS} seconds")
-                time.sleep(CLONE_COMPATIBILITY_CHECK_INTERVAL_SECONDS)
-                continue
-            try:
-                self._log("Cloning remote server")
-                self.src.run_command(
-                    f"CLONE INSTANCE FROM '{self.remote.user}'@'{self.remote.host}':{self.remote.port} IDENTIFIED BY '{self.remote.password}'"
-                )
-            except OperationalError as o:
-                self._log(str(o))
-                if "Restart server failed (mysqld is not managed by supervisor process)" in str(o):
-                    break
-                self._log("Failed to clone remote. Trying again...")
-                time.sleep(CLUSTER_CHECK_INTERVAL_SECONDS)
+        ## we do not proceed until the servers are compatible for cloning
+        while not CloneCompatibilityChecker(src=self.src, remote=self.remote).is_clone_possible():
+            self._log(f"Cloning is not possible, waiting for {CLONE_COMPATIBILITY_CHECK_INTERVAL_SECONDS} seconds")
+            time.sleep(CLONE_COMPATIBILITY_CHECK_INTERVAL_SECONDS)
+
+        self.clone(self.src, self.remote)
 
         self._log("Waiting for source to become ready")
         src_main_password = self.src.password
@@ -343,12 +352,8 @@ class ClusterManager:
             f"set persist clone_valid_donor_list='{self.src.host}:3306'"
         )
         self.repl.run_command("set persist read_only=0")
-        try:
-            self.repl.run_command(
-                f"CLONE INSTANCE FROM '{self.src.user}'@'{self.src.host}':3306 IDENTIFIED BY '{self.src.password}'"
-            )
-        except OperationalError as o:
-            self._log(str(o))
+
+        self.clone(self.repl, self.src)
 
         # TODO: do not continue if this 
         if self.is_server_up(self.repl, retry=retry):

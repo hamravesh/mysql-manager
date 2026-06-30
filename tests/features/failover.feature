@@ -170,6 +170,7 @@ Feature: test failover
     replica=up
 
     """
+    And replication should be running on mysql with server_id 1
     Then result of query: "select @@global.server_id;" with user: hamadmin and password: password on host: hap1 and port: 3306 should be
     """
     <?xml version="1.0"?>
@@ -359,3 +360,4 @@ Feature: test failover
     replica=up
 
     """
+    And replication should be running on mysql with server_id 1
